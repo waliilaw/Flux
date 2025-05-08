@@ -1,0 +1,68 @@
+//More to explore on Arweave side
+
+Current Arweave Implementation (Approximately 15-20%):
+Basic Arweave Setup:
+
+var arweave = Arweave.init({
+  host: "arweave.net",
+  port: 443,
+  protocol: "https",
+});
+
+Basic Transaction Handling:
+
+server.tool(
+  "transaction",
+  { transactionId: z.string() },
+  async ({ transactionId }) => {
+    // Only fetches and displays transaction info
+    const metadataResponse = await fetch(`https://arweave.net/tx/${transactionId}`);
+    const dataResponse = await fetch(`https://arweave.net/raw/${transactionId}`);
+    // ...
+  }
+);
+
+Wallet Generation (Basic):
+
+var wallet = await arweave.wallets.generate();
+var signer = createSigner(wallet);
+
+Missing Arweave Features (80-85%):
+No direct data upload functionality
+No smart contract interaction
+No PST (Profit Sharing Tokens) support
+No ANS (Arweave Name System) integration
+No bundling capabilities
+No gateway management
+No data verification tools
+No permaweb deployment features
+No GraphQL query support
+No wallet management features
+No balance checking
+No transaction signing and posting
+
+
+//More to explore on the AO side 
+
+Current AO Implementation (Approximately 60-65%):
+
+Process
+package
+Blueprint 
+Handler 
+SQlite 
+Lua Code 
+
+Missing AO Features (35-40%):
+No process monitoring
+No process state management
+No process scheduling
+No process communication patterns
+No process recovery mechanisms
+No process debugging tools
+No process logging
+No process performance metrics
+No process security features
+No process backup and restore
+No process migration tools
+No process scaling features
