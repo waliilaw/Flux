@@ -338,5 +338,303 @@ server.tool(
     };
   }
 );
+
+// Basic arweave integrastion for now ,.,.,..,(1st version)
+
+//  Upload Data Tool
+// Add Arweave upload tool
+server.tool(
+  "upload-to-arweave",
+  {
+    content: z.string(),
+    type: z.string().optional(),
+  },
+  async ({ content, type }) => {
+    try {
+      // Determine content type if not provided
+      let contentType = type || "text/plain";
+      
+      const transaction = await arweave.createTransaction({
+        data: Buffer.from(content),
+      });
+      
+      transaction.addTag('Content-Type', contentType);
+      transaction.addTag('App-Name', 'Cursor-Arweave');
+      
+      await arweave.transactions.sign(transaction, wallet);
+      await arweave.transactions.post(transaction);
+      
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Text uploaded successfully!\nTransaction ID: ${transaction.id}\nContent Type: ${contentType}` 
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error uploading data: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+  );
+
+
+// GraphQL Query Tool
+server.tool(
+  "query-arweave",
+  {
+    query: z.string(),
+    variables: z.record(z.any()).optional()
+  },
+  async ({ query, variables }) => {
+    try {
+      const response = await fetch('https://arweave.net/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables })
+      });
+      const result = await response.json();
+      return {
+        content: [{ type: "text", text: cleanOutput(result) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+);
+
+// Bundle Upload Tool
+server.tool(
+  "bundle-upload",
+  {
+    items: z.array(z.object({
+      data: z.string(),
+      tags: z.array(z.object({
+        name: z.string(),
+        value: z.string()
+      })).optional()
+    }))
+  },
+  async ({ items }) => {
+    try {
+      const transactions = await Promise.all(
+        items.map(async item => {
+          const tx = await arweave.createTransaction({
+            data: Buffer.from(item.data)
+          });
+          if (item.tags) {
+            item.tags.forEach(tag => tx.addTag(tag.name, tag.value));
+          }
+          await arweave.transactions.sign(tx, wallet);
+          return tx;
+        })
+      );
+
+      await Promise.all(transactions.map(tx => arweave.transactions.post(tx)));
+
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Successfully uploaded ${transactions.length} items.\nTransaction IDs:\n${transactions.map(tx => tx.id).join('\n')}` 
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+);
+
+// Smart Contract Interaction Tool
+server.tool(
+  "interact-contract",
+  {
+    contractId: z.string(),
+    input: z.string(),
+    tags: z.array(z.object({
+      name: z.string(),
+      value: z.string()
+    })).optional()
+  },
+  async ({ contractId, input, tags }) => {
+    try {
+      const transaction = await arweave.createTransaction({
+        target: contractId,
+        data: Buffer.from(input)
+      });
+
+      if (tags) {
+        tags.forEach(tag => transaction.addTag(tag.name, tag.value));
+      }
+
+      await arweave.transactions.sign(transaction, wallet);
+      await arweave.transactions.post(transaction);
+
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Contract interaction successful!\nTransaction ID: ${transaction.id}` 
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+);
+
+// Wallet Management Tool
+server.tool(
+  "manage-wallet",
+  {
+    action: z.enum(["create", "balance", "last-tx"]),
+    address: z.string().optional()
+  },
+  async ({ action, address }) => {
+    try {
+      switch (action) {
+        case "create": {
+          const newWallet = await arweave.wallets.generate();
+          const address = await arweave.wallets.jwkToAddress(newWallet);
+          return {
+            content: [{ 
+              type: "text", 
+              text: `New wallet created!\nAddress: ${address}` 
+            }],
+          };
+        }
+        case "balance": {
+          if (!address) throw new Error("Address required for balance check");
+          const balance = await arweave.wallets.getBalance(address);
+          const ar = arweave.ar.winstonToAr(balance);
+          return {
+            content: [{ 
+              type: "text", 
+              text: `Wallet Balance:\n${ar} AR\n${balance} Winston` 
+            }],
+          };
+        }
+        case "last-tx": {
+          if (!address) throw new Error("Address required for transaction check");
+          const query = `
+            query {
+              transactions(
+                owners: ["${address}"],
+                first: 1
+              ) {
+                edges {
+                  node {
+                    id
+                    recipient
+                    quantity
+                    tags {
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          const response = await fetch('https://arweave.net/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          });
+          const result = await response.json();
+          return {
+            content: [{ type: "text", text: cleanOutput(result) }],
+          };
+        }
+        default:
+          throw new Error("Invalid action");
+      }
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+);
+
+// Data Search Tool
+server.tool(
+  "search-arweave",
+  {
+    tags: z.array(z.object({
+      name: z.string(),
+      values: z.array(z.string())
+    })),
+    limit: z.number().optional()
+  },
+  async ({ tags, limit = 10 }) => {
+    try {
+      const tagFilters = tags.map(tag => `
+        {
+          name: "${tag.name}",
+          values: ${JSON.stringify(tag.values)}
+        }
+      `).join(',');
+
+      const query = `
+        query {
+          transactions(
+            tags: [${tagFilters}],
+            first: ${limit}
+          ) {
+            edges {
+              node {
+                id
+                owner {
+                  address
+                }
+                data {
+                  size
+                }
+                tags {
+                  name
+                  value
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await fetch('https://arweave.net/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const result = await response.json();
+      return {
+        content: [{ type: "text", text: cleanOutput(result) }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          { type: "text", text: `Error: ${error?.message || String(error)}` },
+        ],
+      };
+    }
+  }
+);
+
+
+
 var transport = new StdioServerTransport();
 await server.connect(transport);
