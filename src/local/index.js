@@ -588,8 +588,7 @@ server.tool(
           name: "${tag.name}",
           values: ${JSON.stringify(tag.values)}
         }
-      `).join(',');
-
+      `).join(',')
       const query = `
         query {
           transactions(
