@@ -1,0 +1,21 @@
+1st
+
+Enhanced Transaction Management
+Wallet Management (more exploration)
+
+2nd 
+
+Arweave GraphQL  (did int the 1st)
+Arns Integration 
+
+3rd
+
+Smart Contract Interaction 
+PST Token Management
+
+4th 
+
+Bundling Transaction
+Perma app deployment
+
+

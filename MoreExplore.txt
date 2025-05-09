@@ -31,7 +31,7 @@ Missing Arweave Features (80-85%):
 No direct data upload functionality
 No smart contract interaction
 No PST (Profit Sharing Tokens) support
-No ANS (Arweave Name System) integration
+No ANS (Arweave Name System) integration  // ArNS 
 No bundling capabilities
 No gateway management
 No data verification tools
