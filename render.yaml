@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: flux
+    env: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+    autoDeploy: true
+    healthCheckPath: /health
+    plan: free 
